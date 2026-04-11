@@ -1,9 +1,9 @@
 name: 🛡️ GitGuard PR Gatekeeper
 
-# Trigger this action only when a Pull Request is opened or updated
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    # 'edited' allows the check to re-run if you change the PR title on GitHub
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
   validate-commits:
@@ -11,12 +11,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # We need the full git history to read the commits
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -27,29 +25,29 @@ jobs:
 
       - name: Start GitGuard AI Engine in Background
         run: |
+          # Start the brain on the GitHub runner
           python -m uvicorn engine:app --host 127.0.0.1 --port 8000 &
-          sleep 3 # Give the server a few seconds to boot up
+          sleep 5 # Give the server a moment to initialize
 
-      - name: Validate PR Commits
+      - name: Validate PR Title via GitGuard
         run: |
-          # Get the commit message of the latest commit in the PR
-          COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+          # Capture the PR title (This avoids the 'Merge' message bug)
+          PR_TITLE="${{ github.event.pull_request.title }}"
 
-          echo "Testing Commit: $COMMIT_MSG"
+          echo "Testing PR Title: $PR_TITLE"
 
-          # Send it to the local GitGuard Engine
+          # Send the title to the local engine
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:8000/validate" \
             -H "Content-Type: application/json" \
-            -d "{\"message\": \"$COMMIT_MSG\", \"files\": []}")
+            -d "{\"message\": \"$PR_TITLE\", \"files\": []}")
             
           HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
           BODY=$(echo "$RESPONSE" | head -n -1)
 
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "::error title=GitGuard Validation Failed::The commit message did not pass quality checks."
-            echo "Details: $BODY"
-            exit 1 # This explicitly BLOCKS the Pull Request from being merged
+            echo "::error title=GitGuard Validation Failed::$BODY"
+            exit 1
           else
             echo "✅ GitGuard Validation Passed!"
-            exit 0 # This gives the PR the Green Checkmark
+            exit 0
           fi
