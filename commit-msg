@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+import sys
+import json
+import urllib.request
+import urllib.error
+import subprocess
+
+class Colors:
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    RED = '\033[91m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
+def print_error(msg):
+    print(f"\n{Colors.RED}{Colors.BOLD}❌ GitGuard Blocked Commit:{Colors.RESET} {msg}")
+
+def print_success(msg):
+    print(f"\n{Colors.GREEN}{Colors.BOLD}✅ GitGuard Accepted:{Colors.RESET} {msg}\n")
+
+def validate_commit(filepath):
+    try:
+        with open(filepath, 'r') as f:
+            commit_msg = f.read().strip()
+    except Exception as e:
+        sys.exit(1)
+
+    if commit_msg.startswith("Merge branch") or commit_msg.startswith("Merge pull request"):
+        sys.exit(0)
+
+    # ==========================================
+    # GET STAGED FILES USING GIT CLI
+    # ==========================================
+    try:
+        # Asks Git: "What files are currently staged for this commit?"
+        staged_files = subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()
+    except Exception:
+        staged_files = []
+
+    # ==========================================
+    # SEND MESSAGE & FILES TO API
+    # ==========================================
+    url = "http://127.0.0.1:8000/validate"
+    payload = json.dumps({"message": commit_msg, "files": staged_files}).encode('utf-8')
+    headers = {'Content-Type': 'application/json'}
+    
+    req = urllib.request.Request(url, data=payload, headers=headers)
+    
+    try:
+        response = urllib.request.urlopen(req, timeout=2)
+        if response.status == 200:
+            data = json.loads(response.read().decode('utf-8'))
+            print_success(f"{data.get('message')} (Sentiment: {data.get('score'):.2f})")
+            sys.exit(0) 
+
+    except urllib.error.HTTPError as e:
+        error_data = json.loads(e.read().decode('utf-8'))
+        print_error(error_data.get('detail', 'Unknown validation error.'))
+        print(f"{Colors.CYAN}💡 Your message: '{commit_msg}'{Colors.RESET}")
+        print(f"{Colors.CYAN}💡 Files changed: {staged_files}{Colors.RESET}\n")
+        sys.exit(1) 
+
+    except urllib.error.URLError:
+        print_error("GitGuard Engine is offline! Start it by running: python3 -m uvicorn engine:app")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        validate_commit(sys.argv[1])
