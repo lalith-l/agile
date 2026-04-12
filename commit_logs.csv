@@ -1,0 +1,5 @@
+Timestamp,Status,Message,Sentiment_Score,Files_Changed,Reason
+2026-04-11 17:30:36,Rejected,wip,0.0,2,Too short
+2026-04-11 17:30:40,Rejected,Fix: this stupid broken garbage code,-0.6,2,Hostile Tone
+2026-04-11 17:30:45,Rejected,Fix: updated stuff,0.0,2,Vague Language
+2026-04-11 17:30:50,Accepted,Feat: successfully deployed GitGuard to Docker containers,0.75,2,Passed all gates

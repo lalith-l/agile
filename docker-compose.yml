@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   gitguard-engine:
@@ -7,7 +7,6 @@ services:
     command: uvicorn engine:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    # This volume maps the CSV file so both your Mac and the container share the exact same data
     volumes:
       - ./commit_logs.csv:/app/commit_logs.csv
 
