@@ -31,7 +31,7 @@ async def validate_commit(payload: CommitPayload):
     files_count = len(files)
 
     # 🚀 NEW: Add this Bypass for automated Merge commits
-   if msg.startswith("Merge ") or msg.startswith("Revert "):
+    if msg.startswith("Merge ") or msg.startswith("Revert "):
         return {"status": "success", "message": "System commit accepted.", "score": 0.0}
 
     # Gate 1: Syntax
