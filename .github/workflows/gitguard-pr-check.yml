@@ -1,0 +1,62 @@
+name: 🛡️ GitGuard PR Gatekeeper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate-commits:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install GitGuard Dependencies
+        run: |
+          pip install fastapi uvicorn textblob pydantic
+          python -m textblob.download_corpora
+
+      - name: Start GitGuard AI Engine in Background
+        run: |
+          # Start the brain and log output just in case
+          python -m uvicorn engine:app --host 127.0.0.1 --port 8000 > engine.log 2>&1 &
+
+          # WAIT FOR IT: Check every 1s if the server is up
+          echo "Waiting for GitGuard Engine to wake up..."
+          for i in {1..10}; do
+            if curl -s http://127.0.0.1:8000/ > /dev/null; then
+              echo "✅ Engine is ONLINE"
+              break
+            fi
+            echo "Sleeping... ($i/10)"
+            sleep 1
+          done
+
+      - name: Validate PR Title via GitGuard
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          echo "Testing PR Title: $PR_TITLE"
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:8000/validate" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"$PR_TITLE\", \"files\": []}")
+            
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "::error title=GitGuard Validation Failed::$BODY"
+            echo "--- Engine Logs ---"
+            cat engine.log
+            exit 1
+          else
+            echo "✅ GitGuard Validation Passed!"
+            exit 0
+          fi
