@@ -2,7 +2,6 @@ name: 🛡️ GitGuard PR Gatekeeper
 
 on:
   pull_request:
-    # 'edited' allows the check to re-run if you change the PR title on GitHub
     types: [opened, synchronize, reopened, edited]
 
 jobs:
@@ -25,18 +24,26 @@ jobs:
 
       - name: Start GitGuard AI Engine in Background
         run: |
-          # Start the brain on the GitHub runner
-          python -m uvicorn engine:app --host 127.0.0.1 --port 8000 &
-          sleep 5 # Give the server a moment to initialize
+          # Start the brain and log output just in case
+          python -m uvicorn engine:app --host 127.0.0.1 --port 8000 > engine.log 2>&1 &
+
+          # WAIT FOR IT: Check every 1s if the server is up
+          echo "Waiting for GitGuard Engine to wake up..."
+          for i in {1..10}; do
+            if curl -s http://127.0.0.1:8000/ > /dev/null; then
+              echo "✅ Engine is ONLINE"
+              break
+            fi
+            echo "Sleeping... ($i/10)"
+            sleep 1
+          done
 
       - name: Validate PR Title via GitGuard
         run: |
-          # Capture the PR title (This avoids the 'Merge' message bug)
           PR_TITLE="${{ github.event.pull_request.title }}"
 
           echo "Testing PR Title: $PR_TITLE"
 
-          # Send the title to the local engine
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "http://127.0.0.1:8000/validate" \
             -H "Content-Type: application/json" \
             -d "{\"message\": \"$PR_TITLE\", \"files\": []}")
@@ -46,6 +53,8 @@ jobs:
 
           if [ "$HTTP_STATUS" -ne 200 ]; then
             echo "::error title=GitGuard Validation Failed::$BODY"
+            echo "--- Engine Logs ---"
+            cat engine.log
             exit 1
           else
             echo "✅ GitGuard Validation Passed!"
