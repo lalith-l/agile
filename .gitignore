@@ -1,0 +1,48 @@
+# =========================
+# Python & Environment
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.venv/
+
+# =========================
+# GitGuard Specific Data
+# =========================
+data/
+commit_logs.csv
+*.log
+
+# =========================
+# Secrets & Configurations
+# =========================
+.env
+.env.*
+secrets.toml
+
+# =========================
+# Docker
+# =========================
+.dockerignore
+
+# =========================
+# OS Generated Files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================
+# IDEs and Editors
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,18 +1,17 @@
-# Use a lightweight Python image that supports both ARM64 and x86 architectures
+# 1. Start with a base image (we pull this from Docker Hub)
 FROM python:3.10-slim
 
-# Set the working directory inside the container
+# 2. Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
+# 3. Copy your requirements file into the image
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# TextBlob requires downloading a specific NLP language model
-RUN python -m textblob.download_corpora
+# 4. Install your Python dependencies
+RUN pip install -r requirements.txt
 
-# Copy all your project files into the container
+# 5. Copy the rest of your application code into the image
 COPY . .
 
-# Expose the ports for FastAPI (8000) and Streamlit (8501)
-EXPOSE 8000 8501
+# 6. Tell Docker what command to run when the container starts
+CMD ["python", "engine.py"]
